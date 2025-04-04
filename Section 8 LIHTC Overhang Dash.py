@@ -4,13 +4,13 @@ import pandas as pd
 import plotly.express as px
 import requests
 import io
-from uszipcode import SearchEngine
 
 st.set_page_config(page_title="LIHTC & Section 8 Rent Analysis", layout="centered")
 st.title("LIHTC & Section 8 Overhang Risk Dashboard")
 
-st.subheader("1. Enter ZIP Code and Load HUD Data")
-zip_code = st.text_input("Enter ZIP Code", max_chars=5)
+st.subheader("1. Enter County and State to Load HUD Data")
+county = st.text_input("Enter County Name (e.g., Essex)")
+state = st.text_input("Enter State Abbreviation (e.g., NJ)")
 
 @st.cache_data
 def get_hud_income_limits(state, county, year=2025):
@@ -23,15 +23,6 @@ def get_hud_income_limits(state, county, year=2025):
     else:
         return None
 
-@st.cache_data
-def get_zip_info(zipcode):
-    search = SearchEngine()
-    return search.by_zipcode(zipcode)
-
-zip_info = get_zip_info(zip_code) if zip_code else None
-county = zip_info.county if zip_info else None
-state = zip_info.state if zip_info else None
-
 hud_data = get_hud_income_limits(state, county) if state and county else None
 
 if hud_data:
@@ -41,7 +32,7 @@ if hud_data:
     st.write(f"Median Income: ${median_income}")
     st.write(f"60% AMI (4-person): ${ami_60_4person}")
 else:
-    st.warning("Unable to load real-time HUD income limits. Please check ZIP or fallback to manual entry.")
+    st.warning("Unable to load real-time HUD income limits. Please check your entry or fallback to manual input.")
     median_income = st.number_input("Manual 100% AMI income (4-person household)", value=80000)
 
 # --- Unit Breakdown ---
@@ -132,4 +123,3 @@ Key Metrics:
 Use this data to evaluate project subsidy exposure and underwrite downside rent risk.
 """
 st.markdown(memo)
-
