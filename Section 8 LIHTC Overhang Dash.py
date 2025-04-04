@@ -23,16 +23,15 @@ def get_hud_income_limits(state, county, year=2025):
     state_param = urllib.parse.quote_plus(state.upper())
     county_param = urllib.parse.quote_plus(county.title())
     url = f"https://www.huduser.gov/hudapi/public/il?state={state_param}&county={county_param}&year={year}"
-    st.text(f"Requesting: {url}")
     res = requests.get(url, headers=headers)
     if res.status_code == 200:
-        return res.json()
+        return res.json(), year
     elif year == 2025:
         st.warning("2025 income limits not found, retrying 2024...")
         return get_hud_income_limits(state, county, year=2024)
     else:
         st.error(f"HUD API returned status {res.status_code}: {res.text}")
-        return None
+        return None, None
 
 @st.cache_data
 def get_hud_fmr(state, county):
@@ -51,15 +50,15 @@ def get_hud_fmr(state, county):
         st.warning("Could not load FMR fallback Excel file.")
     return {}
 
-hud_data = get_hud_income_limits(state.strip(), county.strip()) if state and county else None
+hud_data, hud_year = get_hud_income_limits(state.strip(), county.strip()) if state and county else (None, None)
 fmr_data = get_hud_fmr(state.strip(), county.strip())
 
 if hud_data:
     try:
         median_income = hud_data['IncomeLimits']['median_income']
         ami_60_4person = hud_data['IncomeLimits']['income_limit_60']['4']
-        st.success(f"Loaded HUD Income Limits for {county.title()}, {state.upper()}")
-        st.write(f"Median Income: ${median_income}")
+        st.success(f"Loaded HUD Income Limits for {county.title()}, {state.upper()} ({hud_year})")
+        st.write(f"Median Income ({hud_year}): ${median_income}")
         st.write(f"60% AMI (4-person): ${ami_60_4person}")
     except Exception as e:
         st.warning("HUD API returned unexpected format, falling back to local data.")
@@ -161,7 +160,7 @@ memo = f"""
 
 This dashboard analyzes max allowable LIHTC rents versus Section 8 rents per unit type.
 
-- Based on HUD income data for {county}, {state} or manual entry.
+- Based on HUD income data for {county}, {state} (Year: {hud_year}) or manual entry.
 - Rents are adjusted for utility allowances and household size.
 - Overhang risk is calculated as Section 8 rent above LIHTC net rent.
 
@@ -172,3 +171,4 @@ Key Metrics:
 Use this data to evaluate project subsidy exposure and underwrite downside rent risk.
 """
 st.markdown(memo)
+
