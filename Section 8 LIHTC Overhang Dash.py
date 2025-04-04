@@ -30,7 +30,16 @@ def parse_ami(ami_str):
 
 output = []
 for _, row in unit_data.iterrows():
-    beds = int(row['Beds'])
+    try:
+        beds_raw = row['Beds']
+        if pd.isna(beds_raw) or not str(beds_raw).isdigit():
+            st.warning(f"Missing or invalid bed count for row: {row.to_dict()}")
+            beds = 1  # default fallback
+        else:
+            beds = int(beds_raw)
+    except (ValueError, TypeError, KeyError):
+        st.warning(f"Error processing 'Beds' value: {row.to_dict()}")
+        beds = 1  # fallback again
     hh_size = bedroom_to_hhsize.get(beds, 1.5)
     ami_level = parse_ami(row['AMI Level'])
     income = ami_100_income * ami_level * (hh_size / 4)
