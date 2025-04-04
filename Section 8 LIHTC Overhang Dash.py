@@ -16,17 +16,22 @@ state = st.text_input("Enter State Abbreviation (e.g., NJ)")
 def get_hud_income_limits(state, county, year=2025):
     token = st.secrets["api"]["hud_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    url = f"https://www.huduser.gov/hudapi/public/il?state={state}&county={county}&year={year}"
+    url = f"https://www.huduser.gov/hudapi/public/il?state={state.upper()}&county={county.title()}&year={year}"
+    st.text(f"Requesting: {url}")
     res = requests.get(url, headers=headers)
     if res.status_code == 200:
         return res.json()
+    elif year == 2025:
+        st.warning("2025 income limits not found, retrying 2024...")
+        return get_hud_income_limits(state, county, year=2024)
     else:
+        st.error(f"HUD API returned status {res.status_code}: {res.text}")
         return None
 
-hud_data = get_hud_income_limits(state, county) if state and county else None
+hud_data = get_hud_income_limits(state.strip(), county.strip()) if state and county else None
 
 if hud_data:
-    st.success(f"Loaded 2025 HUD Income Limits for {county}, {state}")
+    st.success(f"Loaded HUD Income Limits for {county.title()}, {state.upper()}")
     median_income = hud_data['IncomeLimits']['median_income']
     ami_60_4person = hud_data['IncomeLimits']['income_limit_60']['4']
     st.write(f"Median Income: ${median_income}")
