@@ -10,7 +10,7 @@ st.set_page_config(page_title="LIHTC & Section 8 Rent Analysis", layout="centere
 st.title("LIHTC & Section 8 Overhang Risk Dashboard")
 
 st.subheader("1. Select County and State to Load HUD Data")
-hud_df = pd.read_csv("data/hud_counties.csv")  # Must include 'state' and 'county' columns
+hud_df = pd.read_csv("hud_counties.csv")  # Adjusted to load from root if data/ path fails
 states = sorted(hud_df["state"].unique())
 state = st.selectbox("Select State", states)
 valid_counties = sorted(hud_df[hud_df["state"] == state]["county"].unique())
@@ -36,7 +36,7 @@ def get_hud_income_limits(state, county, year=2025):
 @st.cache_data
 def get_hud_fmr(state, county):
     try:
-        fmr_df = pd.read_excel("data/section8_fmr_fallback_2025.xlsx")
+        fmr_df = pd.read_excel("section8_fmr_fallback_2025.xlsx")
         row = fmr_df[(fmr_df["state"].str.upper() == state.upper()) & (fmr_df["county"].str.title() == county.title())]
         if not row.empty:
             return {
@@ -62,7 +62,7 @@ if hud_data:
         st.write(f"60% AMI (4-person): ${ami_60_4person}")
     except Exception as e:
         st.warning("HUD API returned unexpected format, falling back to local data.")
-        fallback_df = pd.read_csv("data/hud_fallback_incomes.csv")
+        fallback_df = pd.read_csv("hud_fallback_incomes.csv")
         row = fallback_df[(fallback_df.state == state) & (fallback_df.county == county)]
         if not row.empty:
             median_income = row.iloc[0]['median_income']
@@ -73,7 +73,7 @@ if hud_data:
             median_income = st.number_input("Manual 100% AMI income (4-person household)", value=80000)
 else:
     st.warning("Unable to load real-time HUD income limits. Falling back to local data.")
-    fallback_df = pd.read_csv("data/hud_fallback_incomes.csv")
+    fallback_df = pd.read_csv("hud_fallback_incomes.csv")
     row = fallback_df[(fallback_df.state == state) & (fallback_df.county == county)]
     if not row.empty:
         median_income = row.iloc[0]['median_income']
