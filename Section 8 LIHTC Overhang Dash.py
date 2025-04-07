@@ -19,27 +19,29 @@ section8_df["county"] = section8_df["county"].astype(str).str.strip().str.title(
 
 # Load FIPS state and county name mapping
 fips_df = pd.read_csv("hud_counties.csv")
-st.write("Columns in FIPS DF:", fips_df.columns.tolist())  # Debug line to help determine column names
 
-# Try fallback column name resolution
-state_col = "state_name" if "state_name" in fips_df.columns else "State"
-county_col = "county_name" if "county_name" in fips_df.columns else "County"
+# Fix for known schema inconsistencies
+fips_df.columns = [col.strip().lower() for col in fips_df.columns]
 
-fips_df[state_col] = fips_df[state_col].astype(str).str.upper()
-fips_df[county_col] = fips_df[county_col].astype(str).str.title()
+if "state" in fips_df.columns and "county" in fips_df.columns and "fips" in fips_df.columns:
+    fips_df["state"] = fips_df["state"].astype(str).str.upper()
+    fips_df["county"] = fips_df["county"].astype(str).str.title()
 
-# Dropdowns
-states = sorted(fips_df[state_col].unique())
-selected_state = st.selectbox("Select State", states)
-counties = sorted(fips_df[fips_df[state_col] == selected_state][county_col].unique())
-selected_county = st.selectbox("Select County", counties)
+    states = sorted(fips_df["state"].unique())
+    selected_state = st.selectbox("Select State", states)
+
+    counties = sorted(fips_df[fips_df["state"] == selected_state]["county"].unique())
+    selected_county = st.selectbox("Select County", counties)
+else:
+    st.error("hud_counties.csv is missing required columns: 'state', 'county', 'fips'")
+    st.stop()
 
 # Get FIPS from lookup
 @st.cache_data
 def get_entity_id(state_name, county_name):
     match = fips_df[
-        (fips_df[state_col] == state_name) &
-        (fips_df[county_col] == county_name)
+        (fips_df["state"] == state_name.upper()) &
+        (fips_df["county"] == county_name.title())
     ]
     if not match.empty:
         return str(match.iloc[0]['fips']).zfill(5)
