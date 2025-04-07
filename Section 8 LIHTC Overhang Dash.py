@@ -19,21 +19,27 @@ section8_df["county"] = section8_df["county"].astype(str).str.strip().str.title(
 
 # Load FIPS state and county name mapping
 fips_df = pd.read_csv("hud_counties.csv")
-fips_df["state_name"] = fips_df["State"].astype(str).str.upper()
-fips_df["county_name"] = fips_df["County"].astype(str).str.title()
+st.write("Columns in FIPS DF:", fips_df.columns.tolist())  # Debug line to help determine column names
+
+# Try fallback column name resolution
+state_col = "state_name" if "state_name" in fips_df.columns else "State"
+county_col = "county_name" if "county_name" in fips_df.columns else "County"
+
+fips_df[state_col] = fips_df[state_col].astype(str).str.upper()
+fips_df[county_col] = fips_df[county_col].astype(str).str.title()
 
 # Dropdowns
-states = sorted(fips_df["state_name"].unique())
+states = sorted(fips_df[state_col].unique())
 selected_state = st.selectbox("Select State", states)
-counties = sorted(fips_df[fips_df["state_name"] == selected_state]["county_name"].unique())
+counties = sorted(fips_df[fips_df[state_col] == selected_state][county_col].unique())
 selected_county = st.selectbox("Select County", counties)
 
 # Get FIPS from lookup
 @st.cache_data
 def get_entity_id(state_name, county_name):
     match = fips_df[
-        (fips_df['state_name'] == state_name) &
-        (fips_df['county_name'] == county_name)
+        (fips_df[state_col] == state_name) &
+        (fips_df[county_col] == county_name)
     ]
     if not match.empty:
         return str(match.iloc[0]['fips']).zfill(5)
@@ -122,7 +128,6 @@ if not hud_data or 'IncomeLimits' not in hud_data:
     else:
         st.warning("No fallback data found. Please enter income manually.")
         median_income = st.number_input("Manual 100% AMI income (4-person household)", value=80000)
-
 
 # Above was patched to log HUD API failures. Above was patched to have state and counties translate from numbers to real readable. Above was patched to use FIPS within HUD API calls. Remainder of dashboard continues unchanged...
 
