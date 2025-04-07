@@ -9,20 +9,20 @@ import urllib.parse
 st.set_page_config(page_title="LIHTC & Section 8 Rent Analysis", layout="centered")
 st.title("LIHTC & Section 8 Overhang Risk Dashboard")
 
-st.subheader("1. Select County and State to Load HUD Data")
+st.subheader("1. Select State and County to Load HUD Data")
 section8_df = pd.read_excel("Section8-FY25.xlsx")
 
 # Clean and format state and county fields for display
 section8_df["state"] = section8_df["state"].astype(str).str.strip().str.upper()
 section8_df["county"] = section8_df["county"].astype(str).str.strip().str.title()
 
-# Create combined label for dropdown
-section8_df["label"] = section8_df["county"] + ", " + section8_df["state"]
-labels = sorted(section8_df["label"].dropna().unique())
-selection = st.selectbox("Select County, State", labels)
+# First dropdown for state
+states = sorted(section8_df["state"].dropna().unique())
+state = st.selectbox("Select State", states)
 
-# Parse selected county and state
-county, state = map(str.strip, selection.split(","))
+# Second dropdown filtered by selected state
+counties = sorted(section8_df[section8_df["state"] == state]["county"].dropna().unique())
+county = st.selectbox("Select County", counties)
 
 @st.cache_data
 def get_entity_id(state, county):
