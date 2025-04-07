@@ -10,25 +10,34 @@ st.set_page_config(page_title="LIHTC & Section 8 Rent Analysis", layout="centere
 st.title("LIHTC & Section 8 Overhang Risk Dashboard")
 
 st.subheader("1. Select County and State to Load HUD Data")
-hud_df = pd.read_csv("hud_counties.csv")  # Adjusted to load from root if data/ path fails
-states = sorted(hud_df["state"].unique())
+section8_df = pd.read_excel("Section8-FY25.xlsx")
+states = sorted(section8_df["state"].dropna().unique())
 state = st.selectbox("Select State", states)
-valid_counties = sorted(hud_df[hud_df["state"] == state]["county"].unique())
+valid_counties = sorted(section8_df[section8_df["state"] == state]["county"].dropna().unique())
 county = st.selectbox("Select County", valid_counties)
 
 @st.cache_data
-def get_hud_income_limits(state, county, year=2025):
+def get_entity_id(state, county):
+    match = section8_df[
+        (section8_df['state'].str.strip().str.upper() == state.strip().upper()) &
+        (section8_df['county'].str.strip().str.lower() == county.strip().lower())
+    ]
+    if not match.empty:
+        fips = str(int(match.iloc[0]['fips'])).zfill(5)
+        return fips
+    return None
+
+@st.cache_data
+def get_hud_income_limits(entity_id, year=2025):
     token = st.secrets["api"]["hud_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    state_param = urllib.parse.quote_plus(state.upper())
-    county_param = urllib.parse.quote_plus(county.title())
-    url = f"https://www.huduser.gov/hudapi/public/il?state={state_param}&county={county_param}&year={year}"
+    url = f"https://www.huduser.gov/hudapi/public/il/data/{entity_id}?year={year}"
     res = requests.get(url, headers=headers)
     if res.status_code == 200:
         return res.json(), year
     elif year == 2025:
         st.warning("2025 income limits not found, retrying 2024...")
-        return get_hud_income_limits(state, county, year=2024)
+        return get_hud_income_limits(entity_id, year=2024)
     else:
         st.error(f"HUD API returned status {res.status_code}: {res.text}")
         return None, None
@@ -37,7 +46,7 @@ def get_hud_income_limits(state, county, year=2025):
 def get_hud_fmr(state, county):
     try:
         fmr_df = pd.read_excel("section8_fmr_fallback_2025.xlsx")
-        row = fmr_df[(fmr_df["state"].str.upper() == state.upper()) & (fmr_df["county"].str.title() == county.title())]
+        row = fmr_df[(fmr_df["state"].str.upper() == state.upper()) & (fmr_df["county"].str.strip().str.lower() == county.strip().lower())]
         if not row.empty:
             return {
                 "fmr_0br": row.iloc[0].get("fmr_0br", 0),
@@ -50,38 +59,48 @@ def get_hud_fmr(state, county):
         st.warning("Could not load FMR fallback Excel file.")
     return {}
 
-hud_data, hud_year = get_hud_income_limits(state.strip(), county.strip()) if state and county else (None, None)
+entity_id = get_entity_id(state, county)
+st.write("Selected:", state, county)
+st.write("Entity ID:", entity_id)
+
+hud_data, hud_year = get_hud_income_limits(entity_id) if entity_id else (None, None)
 fmr_data = get_hud_fmr(state.strip(), county.strip())
 
-if hud_data:
+if hud_data and 'IncomeLimits' in hud_data:
     try:
         median_income = hud_data['IncomeLimits']['median_income']
         ami_60_4person = hud_data['IncomeLimits']['income_limit_60']['4']
         st.success(f"Loaded HUD Income Limits for {county.title()}, {state.upper()} ({hud_year})")
         st.write(f"Median Income ({hud_year}): ${median_income}")
         st.write(f"60% AMI (4-person): ${ami_60_4person}")
+
+        st.subheader("Raw Income Limits Table")
+        raw_table = pd.DataFrame(hud_data['IncomeLimits']['income_limit_60'], index=["60% AMI"]).T
+        for level in ['income_limit_30', 'income_limit_50', 'income_limit_80']:
+            if level in hud_data['IncomeLimits']:
+                tmp_df = pd.DataFrame(hud_data['IncomeLimits'][level], index=[level.replace('income_limit_', '') + '%']).T
+                raw_table = pd.concat([raw_table, tmp_df])
+        st.dataframe(raw_table)
+
     except Exception as e:
         st.warning("HUD API returned unexpected format, falling back to local data.")
-        fallback_df = pd.read_csv("hud_fallback_incomes.csv")
-        row = fallback_df[(fallback_df.state == state) & (fallback_df.county == county)]
-        if not row.empty:
-            median_income = row.iloc[0]['median_income']
-            st.info("Using fallback HUD income limits.")
-            st.write(f"Median Income: ${median_income}")
-        else:
-            st.warning("No fallback data found. Please enter income manually.")
-            median_income = st.number_input("Manual 100% AMI income (4-person household)", value=80000)
-else:
+        hud_data = None
+
+if not hud_data or 'IncomeLimits' not in hud_data:
     st.warning("Unable to load real-time HUD income limits. Falling back to local data.")
-    fallback_df = pd.read_csv("hud_fallback_incomes.csv")
-    row = fallback_df[(fallback_df.state == state) & (fallback_df.county == county)]
+    row = section8_df[
+        (section8_df.state.str.upper() == state.upper()) &
+        (section8_df.county.str.strip().str.lower() == county.strip().lower())
+    ]
     if not row.empty:
-        median_income = row.iloc[0]['median_income']
-        st.info("Using fallback HUD income limits.")
+        median_income = row.iloc[0]['median2025']
+        st.info("Using fallback Section 8 income limits.")
         st.write(f"Median Income: ${median_income}")
     else:
         st.warning("No fallback data found. Please enter income manually.")
         median_income = st.number_input("Manual 100% AMI income (4-person household)", value=80000)
+
+# Above was patched to use FIPS within HUD API calls. Remainder of dashboard continues unchanged...
 
 # --- Unit Breakdown ---
 st.subheader("2. Unit Input by AMI Level, Beds, and Baths")
