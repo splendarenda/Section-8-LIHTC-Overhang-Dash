@@ -16,10 +16,13 @@ section8_df = pd.read_excel("Section8-FY25.xlsx")
 section8_df["state"] = section8_df["state"].astype(str).str.strip().str.upper()
 section8_df["county"] = section8_df["county"].astype(str).str.strip().str.title()
 
-states = sorted(section8_df["state"].dropna().unique())
-state = st.selectbox("Select State", states)
-valid_counties = sorted(section8_df[section8_df["state"] == state]["county"].dropna().unique())
-county = st.selectbox("Select County", valid_counties)
+# Create combined label for dropdown
+section8_df["label"] = section8_df["county"] + ", " + section8_df["state"]
+labels = sorted(section8_df["label"].dropna().unique())
+selection = st.selectbox("Select County, State", labels)
+
+# Parse selected county and state
+county, state = map(str.strip, selection.split(","))
 
 @st.cache_data
 def get_entity_id(state, county):
