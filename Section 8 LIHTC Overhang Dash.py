@@ -11,6 +11,11 @@ st.title("LIHTC & Section 8 Overhang Risk Dashboard")
 
 st.subheader("1. Select County and State to Load HUD Data")
 section8_df = pd.read_excel("Section8-FY25.xlsx")
+
+# Clean and format state and county fields for display
+section8_df["state"] = section8_df["state"].astype(str).str.strip().str.upper()
+section8_df["county"] = section8_df["county"].astype(str).str.strip().str.title()
+
 states = sorted(section8_df["state"].dropna().unique())
 state = st.selectbox("Select State", states)
 valid_counties = sorted(section8_df[section8_df["state"] == state]["county"].dropna().unique())
@@ -100,7 +105,7 @@ if not hud_data or 'IncomeLimits' not in hud_data:
         st.warning("No fallback data found. Please enter income manually.")
         median_income = st.number_input("Manual 100% AMI income (4-person household)", value=80000)
 
-# Above was patched to use FIPS within HUD API calls. Remainder of dashboard continues unchanged...
+# Above was patched to have state and counties translate from numbers to real readable. Above was patched to use FIPS within HUD API calls. Remainder of dashboard continues unchanged...
 
 # --- Unit Breakdown ---
 st.subheader("2. Unit Input by AMI Level, Beds, and Baths")
