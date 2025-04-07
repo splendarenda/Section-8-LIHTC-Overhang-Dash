@@ -19,8 +19,8 @@ section8_df["county"] = section8_df["county"].astype(str).str.strip().str.title(
 
 # Load FIPS state and county name mapping
 fips_df = pd.read_csv("hud_counties.csv")
-fips_df["state_name"] = fips_df["state_name"].astype(str).str.upper()
-fips_df["county_name"] = fips_df["county_name"].astype(str).str.title()
+fips_df["state_name"] = fips_df["State"].astype(str).str.upper()
+fips_df["county_name"] = fips_df["County"].astype(str).str.title()
 
 # Dropdowns
 states = sorted(fips_df["state_name"].unique())
@@ -122,6 +122,7 @@ if not hud_data or 'IncomeLimits' not in hud_data:
     else:
         st.warning("No fallback data found. Please enter income manually.")
         median_income = st.number_input("Manual 100% AMI income (4-person household)", value=80000)
+
 
 # Above was patched to log HUD API failures. Above was patched to have state and counties translate from numbers to real readable. Above was patched to use FIPS within HUD API calls. Remainder of dashboard continues unchanged...
 
