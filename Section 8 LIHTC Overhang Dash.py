@@ -137,6 +137,7 @@ if not hud_data or 'IncomeLimits' not in hud_data:
         st.warning("No fallback data found. Please enter income manually.")
         median_income = st.number_input("Manual 100% AMI income (4-person household)", value=80000)
 
+# Remainder of dashboard continues unchanged...
 
 # Above was patched to log HUD API failures. Above was patched to have state and counties translate from numbers to real readable. Above was patched to use FIPS within HUD API calls. Remainder of dashboard continues unchanged...
 
