@@ -17,11 +17,17 @@ section8_df = pd.read_excel("Section8-FY25.xlsx")
 section8_df["state"] = section8_df["state"].astype(str).str.strip().str.upper()
 section8_df["county"] = section8_df["county"].astype(str).str.strip().str.title()
 
-# Load FIPS state and county name mapping
+# Load and clean FIPS state and county name mapping
 fips_df = pd.read_csv("hud_counties.csv")
+fips_df.columns = [col.strip().lower().replace(" ", "_") for col in fips_df.columns]
 
-# Fix for known schema inconsistencies
-fips_df.columns = [col.strip().lower() for col in fips_df.columns]
+# Rename known schema variations
+rename_map = {
+    "state_name": "state",
+    "county_name": "county",
+    "fips_code": "fips"
+}
+fips_df.rename(columns=rename_map, inplace=True)
 
 if "state" in fips_df.columns and "county" in fips_df.columns and "fips" in fips_df.columns:
     fips_df["state"] = fips_df["state"].astype(str).str.upper()
@@ -130,6 +136,7 @@ if not hud_data or 'IncomeLimits' not in hud_data:
     else:
         st.warning("No fallback data found. Please enter income manually.")
         median_income = st.number_input("Manual 100% AMI income (4-person household)", value=80000)
+
 
 # Above was patched to log HUD API failures. Above was patched to have state and counties translate from numbers to real readable. Above was patched to use FIPS within HUD API calls. Remainder of dashboard continues unchanged...
 
